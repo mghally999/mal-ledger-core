@@ -4,3 +4,4 @@ This project was built with Claude Code under my direction: I set the policies, 
 
 - 2026-10-02 15:29 — Milestone 1: project skeleton (package.json scripts replay/test/test:gap, strict tsconfig for Node type stripping, src/ and test/ folders, README stub, this work log).
 - 2026-10-02 15:30 — Milestone 2: money module (bigint minor units, toMinor/format, round_half_up, instalment split with remainder to the first instalment) with 10 passing tests.
+- 2026-10-02 15:31 — Milestone 3: ledger core (frozen append-only entries, closingBalance by value date, authorizations with holds derived from the records, settlement releases the whole hold) with 9 more passing tests (19 total).

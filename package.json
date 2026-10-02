@@ -9,7 +9,7 @@
   },
   "scripts": {
     "replay": "node --experimental-strip-types src/main.ts",
-    "test": "node --experimental-strip-types --test test/money.test.ts",
+    "test": "node --experimental-strip-types --test test/money.test.ts test/ledger.test.ts",
     "test:gap": "node --experimental-strip-types --test test/known-gap.test.ts"
   },
   "license": "UNLICENSED"
