@@ -1,0 +1,16 @@
+{
+  "name": "mal-ledger-core",
+  "version": "1.0.0",
+  "description": "Append-only, BigInt-based ledger replay (Mal take-home assessment)",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "replay": "node --experimental-strip-types src/main.ts",
+    "test": "node --experimental-strip-types --test test/money.test.ts test/ledger.test.ts test/replay.test.ts",
+    "test:gap": "node --experimental-strip-types --test test/known-gap.test.ts"
+  },
+  "license": "UNLICENSED"
+}

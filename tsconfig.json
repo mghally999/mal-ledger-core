@@ -1,0 +1,23 @@
+{
+  // Strict TypeScript, executed directly by Node (no compile step):
+  //   node --experimental-strip-types  removes type annotations and runs the .ts file as-is.
+  // The options below keep every file inside the subset of TypeScript that Node can strip.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+
+    // Node strips types instead of compiling, so tsc only ever type-checks (nothing is emitted).
+    "noEmit": true,
+    // Node needs the real file extension in imports:  import { x } from './money.ts'
+    "allowImportingTsExtensions": true,
+    // Type-only imports must say `import type`, otherwise Node would try to load a type at runtime.
+    "verbatimModuleSyntax": true,
+    // Forbid syntax that Node cannot strip (enums, namespaces, constructor parameter properties).
+    "erasableSyntaxOnly": true,
+
+    "skipLibCheck": true
+  },
+  "include": ["src", "test"]
+}
