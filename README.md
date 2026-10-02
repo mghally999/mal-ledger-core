@@ -43,7 +43,7 @@ src/main.ts       `npm run replay`
 test/*.test.ts    node:test suites; known-gap.test.ts is the intentional failure
 ```
 
-The policies P1 .. P10 referenced in comments are the design decisions of the brief:
+The policies P1 .. P10 are my design decisions, made where the brief is silent or ambiguous:
 
 | Policy | One line                                                                                       |
 | ------ | ---------------------------------------------------------------------------------------------- |
@@ -57,6 +57,21 @@ The policies P1 .. P10 referenced in comments are the design decisions of the br
 | P8     | reversal: new opposite entry with the original's value date, linked to it; no automatic fee refund |
 | P9     | instalments: split minor units by count; the first instalment absorbs the remainder            |
 | P10    | late event (booked day already closed): post with its own value date, raise LATE_EVENT, do not re-run EOD |
+
+### What comes from the brief, and what I decided
+
+From Mal's brief: the two accounts and the event stream; the 6-day window; the append-only ledger; AED at
+2 decimals and BHD at 3; the overdraft fee of AED 25.00, once per account per day on a negative closing and
+value-dated that day; 0.04 % daily interest on positive closing balances; capitalisation as one credit at the
+end of Day 6 whose rounded accruals sum exactly to the total; the authorization rule (available = ledger
+balance - active holds, must stay >= 0 after the new hold); and the eight acceptance criteria discussed in
+[REJECTED.md](REJECTED.md).
+
+Mine, made where the brief is silent or ambiguous: everything else in P1 .. P10, including value-dated closing
+balances, when EOD runs and the fee-before-interest order, no retroactive fees, the AED-only fee, half-up
+rounding, accruals as memo records that are never restated, the remainder going to the first instalment,
+force-posting unmatched settlements, no automatic fee refund on reversal, how late events are handled, and
+which day a notice belongs to. Each is argued in [AMBIGUITIES.md](AMBIGUITIES.md).
 
 ## Reading the replay output
 

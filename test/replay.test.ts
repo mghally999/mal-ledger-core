@@ -1,6 +1,7 @@
 /**
- * The EXPECTED RESULTS of the brief, asserted one by one against a full replay of the event stream.
- * Amounts are compared as formatted strings ("-370.00") so each assertion reads exactly like the brief.
+ * The expected results of my design (policies P1 .. P10 in README.md), asserted one by one against a full
+ * replay of the brief's event stream. Amounts are compared as formatted strings ("-370.00") so each
+ * assertion reads like a line of the expected-results list.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

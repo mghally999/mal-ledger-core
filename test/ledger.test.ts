@@ -4,7 +4,7 @@ import { Ledger, type Entry, type Side } from '../src/ledger.ts';
 
 const ACCOUNTS = { 'ACC-001': 'AED', 'ACC-002': 'BHD' } as const;
 
-/** Small builder so the tests read like the brief: credit('E1', 120000n, 1) = booked D1, value D1. */
+/** Small builder so the tests read like the event stream: credit('E1', 120000n, 1) = booked D1, value D1. */
 function entry(side: Side, id: string, amount: bigint, bookedDay: number, valueDay = bookedDay): Entry {
   return { id, account: 'ACC-001', side, amount, bookedDay, valueDay, kind: 'TRANSFER' };
 }

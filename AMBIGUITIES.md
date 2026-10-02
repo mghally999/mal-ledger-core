@@ -102,7 +102,7 @@ Policy numbers (P1 .. P10) refer to the table in README.md; the code comments ci
 - **Ambiguity:** 10.000 BHD / 3 is 3.333 with 1 fils left over. Who gets the fils?
 - **Options:** (a) the first instalment; (b) the last; (c) round-robin across instalments.
 - **Decision:** (a) (P9): 3.334, 3.333, 3.333.
-- **Why:** the brief says first; it is deterministic, trivially verifiable, and the sum is exact by
+- **Why:** I chose first (P9): it is deterministic, trivially verifiable, and the sum is exact by
   construction (`share * count + remainder`). (b) would be equally exact; (c) is pointless because the
   remainder is always smaller than the count.
 
@@ -111,7 +111,8 @@ Policy numbers (P1 .. P10) refer to the table in README.md; the code comments ci
 - **Ambiguity:** "round" for 11.4, 10.4 and future values of x.5.
 - **Options:** half-up, half-even (banker's), half-down, truncation.
 - **Decision:** half-up, implemented on integers (`remainder * 2 >= denominator`), P4.
-- **Why:** it is the rounding a customer can check by hand and the brief names it. This scenario has no exact
+- **Why:** the brief says the accruals are rounded but names no mode; half-up is the rounding a customer can
+  check by hand, so I chose it (P4). This scenario has no exact
   half, so every mode gives 0.67 today; the mode is pinned so that tomorrow's data cannot change it silently.
   Truncation was rejected because it is always against the customer.
 
@@ -120,7 +121,7 @@ Policy numbers (P1 .. P10) refer to the table in README.md; the code comments ci
 - **Ambiguity:** D5 closes at -360.00. Negative interest? Debit interest? Zero?
 - **Options:** (a) charge debit interest on overdrafts; (b) accrue zero; (c) accrue on the pre-fee balance.
 - **Decision:** (b): `closing > 0 ? round_half_up(...) : 0` (P4). The accrual uses the post-fee balance
-  because the brief fixes the EOD order "fee check, then interest"; on D5 both are negative so the order does
+  because my P2 fixes the EOD order "fee check, then interest"; on D5 both are negative so the order does
   not change the 0.00, but it would matter for a balance between 0.00 and 25.00.
 - **Why:** the overdraft penalty is the flat fee (P3), not a rate. A zero balance earns nothing because there
   is nothing to earn on.
@@ -142,7 +143,9 @@ Policy numbers (P1 .. P10) refer to the table in README.md; the code comments ci
   balance, or the balance including same-day pending items.
 - **Options:** (a) all entries regardless of value date; (b) entries with value date <= booking day; (c)
   (b) minus active holds.
-- **Decision:** (c) (P5): `closingBalance(account, bookingDay) - activeHolds - newHold >= 0`.
+- **Decision:** (c): `closingBalance(account, bookingDay) - activeHolds - newHold >= 0`. The brief gives the
+  rule (available = ledger balance - active holds, >= 0 after the hold); my P5 pins "ledger balance" to the
+  value-dated balance as of the booking day.
   Auth-A on D2: 250.00 - 0 - 200.00 = 50.00, approved. Auth-B on D5: -335.00 - 0 - 90.00 = -425.00, declined.
 - **Why:** value dating is what the rest of the ledger uses; ignoring it would let a back-valued debit
   (E7) be invisible to the D5 decision. Note that E7 is value-dated D2 <= D5 and so is counted in -335.00.
@@ -157,7 +160,7 @@ Policy numbers (P1 .. P10) refer to the table in README.md; the code comments ci
 
 ## 15. End of day for days without events, and the last day
 
-- **Ambiguity:** P2 defines EOD for day D by "the stream first reaches a later day". A day with no events, or
+- **Ambiguity:** my P2 defines EOD for day D by "the stream first reaches a later day". A day with no events, or
   a stream that ends before Day 6, has no such trigger.
 - **Options:** (a) close only days that had events; (b) close every day of the window in order.
 - **Decision:** (b). `apply` closes every day between the current day and the event's booked day; `finish`
@@ -169,7 +172,7 @@ Policy numbers (P1 .. P10) refer to the table in README.md; the code comments ci
 
 - **Ambiguity:** E10 is booked D5 and arrives during D6. Is the LATE_EVENT a D5 or a D6 notice?
 - **Options:** (a) the booked day; (b) the day the stream was in when it arrived.
-- **Decision:** (b): D6, matching the brief's "D6 LATE_EVENT (E10)". The entries themselves keep value date
+- **Decision:** (b): D6, the day the stream was in (my decision, P10). The entries themselves keep value date
   D5.
 - **Why:** a notice records when the bank found out; the value date records when the money counts. They are
   different facts and the ledger keeps both.
@@ -186,8 +189,8 @@ Policy numbers (P1 .. P10) refer to the table in README.md; the code comments ci
 
 - **Ambiguity:** the brief calls the daily accrual "interest". Mal is an Islamic bank.
 - **Options:** (a) rename the concept in code and output; (b) keep the brief's term.
-- **Decision:** (b). Code, tests and reports use the brief's wording so that every expected result reads the
-  same as the specification.
+- **Decision:** (b). Code, tests and reports use the brief's wording, so that the code, the tests and the
+  brief use one word for one thing.
 - **Why:** the naming is a product and Sharia-board decision, not a ledger-engine decision; the arithmetic
   (a daily accrual, memo-recorded, capitalised once) is unchanged by the label, and the rename is a one-word
   change in `EntryKind` and the report.
