@@ -84,10 +84,12 @@ test('exactly ONE fee in the whole run: AED 25.00, ACC-001, value_date D5', () =
   assert.equal(fee.bookedDay, 5);
 });
 
-test('no retroactive fees: a back-valued debit makes D2..D4 negative, but their EOD already ran', () => {
+test('no retroactive fees: the back-valued E7 makes D2 and D4 negative, but their EOD already ran', () => {
   const fresh = new Replay(new Ledger(ACCOUNTS));
   for (const event of EVENTS.slice(0, 8)) fresh.apply(event); // E1 .. E8: D1..D4 are closed, D5 is open
-  for (const day of [2, 3, 4]) assert.ok(fresh.ledger.closingBalance('ACC-001', day) < 0n); // negative since E7
+  assert.equal(aed(fresh.ledger.closingBalance('ACC-001', 2)), '-370.00'); // 250.00 - 620.00
+  assert.equal(aed(fresh.ledger.closingBalance('ACC-001', 3)), '30.00'); // E4's 400.00 lifts D3 above zero
+  assert.equal(aed(fresh.ledger.closingBalance('ACC-001', 4)), '-335.00'); // 30.00 - 185.00 - 180.00
   fresh.finish(); // closes D5 and D6; without E9 both close negative, so both get their own fee
   const feeDays = fresh.ledger.entries.filter((e) => e.kind === 'FEE').map((e) => e.valueDay);
   assert.deepEqual(feeDays, [5, 6]); // only days closed AFTER the debit arrived; never D2, D3 or D4
