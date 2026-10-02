@@ -1,97 +1,116 @@
-# REJECTED.md: criteria refused, criteria accepted, approaches abandoned
+# REJECTED.md: Mal's acceptance criteria, accepted or refused, and approaches abandoned
 
-> **Numbering note.** The brief's numbered criteria list was not included in the instructions this repository
-> was built from; only the verdicts were ("2, 4, 6, 7, 8 refused; 1, 3, 5 accepted"). The headings below
-> reconstruct each criterion's substance from the policies and expected results. If the original wording
-> differs, rename the headings; the reasons and numbers stand on their own.
+The brief lists eight acceptance criteria, quoted verbatim below. Three hold up against the ledger; five do
+not, and each refusal says why with figures. Every figure is reproducible: `npm run replay` prints the actual
+run, and each counterfactual (a criterion applied literally) was produced by feeding the engine a modified
+event stream. Policy numbers (P1 .. P10) are my design decisions, listed in README.md.
 
-Every figure below is reproducible with `npm run replay` (actual run) or by hand from the journal:
-E1 +1200.00, E2 -950.00, E4 +400.00, E5 -185.00, E6 -180.00, E7 -620.00 (vd D2), FEE -25.00 (D5),
-E9 +620.00 (vd D2), interest rate 4/10000 half-up.
+Reference journal for ACC-001: E1 +1200.00, E2 -950.00, E4 +400.00, E5 -185.00, E6 -180.00,
+E7 -620.00 (booked D5, value date D2), FEE -25.00 (D5), E9 +620.00 (booked D6, value date D2).
+Interest is 0.04 % of a positive closing balance per day, rounded half up (my choice of rounding, P4).
 
-## Accepted
+## Criterion 1: ACCEPTED
 
-### Criterion 1: the closing balance of a day is value-dated (accepted)
+> "The Day 2 closing ledger balance, evaluated at end of Day 5 and before any fee is assessed, is AED −370.00."
 
-`closingBalance(account, D)` sums entries booked so far with value date <= D. After E8 the D2 figure is
-**-370.00** (250.00 - 620.00) because E7 is value-dated D2 even though it was booked D5.
-Accepted because that is what a value date is for: the alternative, a booked-day balance, would report D2 as
-250.00 forever, make back-valuing meaningless, and let Auth-B on D5 be decided without E7 (available 285.00 -
-90.00 = 195.00, approved) when the account was in fact at -335.00.
+Correct. At the end of Day 5, after E8 and before Day 5's end of day, the entries with value date <= D2 are
+E1 (+1200.00), E2 (-950.00) and E7 (-620.00, booked D5 but value-dated D2): 250.00 - 620.00 = **-370.00**.
+Holds (Auth-A, released on D4) and later-dated entries (E4 on D3, E5 and E6 on D4) do not affect it, and no
+fee exists yet. Asserted by the test "after replaying through E8 (before Day 5 EOD): closingBalance(ACC-001,
+D2) = -370.00" in `test/replay.test.ts`.
 
-### Criterion 3: authorizations are decided against the value-dated balance minus active holds (accepted)
+## Criterion 2: REFUSED
 
-Auth-A on D2: 250.00 - 0 - 200.00 = **50.00**, approved; the 200.00 hold does not change the ledger balance.
-Auth-B on D5: -335.00 - 0 - 90.00 = **-425.00**, declined; a declined request holds nothing.
-Accepted because a hold is a promise, not a movement of money; keeping holds in their own register keeps the
-journal and P1 pure and lets a hold's state be derived (ACTIVE / SETTLED / DECLINED) instead of mutated.
+> "E7 causes exactly one overdraft fee to be assessed, on Day 2."
 
-### Criterion 5: an instalment credit is split in minor units, exactly, with the remainder on the first (accepted)
+E7 is booked on Day 5. When Day 2's own end of day ran, the balance was **+250.00**, so no fee could be
+assessed on Day 2: a fee is booked and value-dated on the day it is assessed, and Day 2 was closed three days
+before E7 existed. Under my design (P3: no retroactive fees) E7 does cause exactly one fee, but on **Day 5**,
+which closes at -335.00 and ends at -360.00 once the fee is posted. Under a retroactive reading, E7 would
+cause **three** fees, on D2 (-370.00), D4 (-335.00) and D5, because D3 stays at +30.00; that run ends at
+210.65 instead of 260.67. The criterion is wrong on either reading: "exactly one fee, on Day 2" is not a
+result any consistent rule produces.
 
-BHD 10.000 = 10000 fils; 10000 / 3 = 3333 remainder 1; instalments **3.334 + 3.333 + 3.333 = 10.000**.
-Accepted because the split is exact by construction and deterministic. The float alternative,
-`10 / 3 = 3.3333333333333335`, cannot even be written as a BHD amount.
+## Criterion 3: ACCEPTED
 
-## Refused
+> "The Day 4 settlement of Auth-A must be accepted."
 
-### Criterion 2: charge the overdraft fee retroactively for past days a back-valued entry made negative (refused)
+Correct. Auth-A was approved on D2 (250.00 - 0 active holds - 200.00 = **50.00** >= 0), so on D4 it is an
+active hold. E5 settles it for 185.00, below the 200.00 hold: the debit is posted with value date D4 and the
+whole hold is released (P6); the unused 15.00 is not kept as a residual hold. D4 closes at 285.00. Asserted
+by "Auth-A: APPROVED on D2 (available after hold 50.00); SETTLED D4 for 185.00, 15.00 released" in
+`test/replay.test.ts`.
 
-E7 (booked D5, value date D2) makes D2 close at -370.00 and D4 at -335.00; D3 stays at +30.00. Charging D2
-and D4 as well would mean **three fees, 75.00 instead of 25.00**: D5 would close at -410.00, D6 at 210.00
-(accrual 8.4 -> 0.08), capitalised interest 0.65 and a final balance of **210.65 instead of 260.67**.
-Refused because the next event in the stream, E9, reverses E7: the customer would be holding 50.00 of
-penalties for a bank-side debit that no longer exists. EOD is a one-shot process per day (P3); a back-valued
-entry is a reason for operations to review, not for the engine to punish the past.
+## Criterion 4: REFUSED
 
-### Criterion 4: reject a settlement that has no matching authorization (refused)
+> "Any settlement referencing an authorization ID not present in the ledger must be rejected and the funds must not leave the account."
 
-Auth-Z settles 180.00 on D4 with no prior auth. Rejecting it would close D4 at 465.00 (accrual 0.19), D5 at
--180.00 after the fee, D6 at 440.00 (accrual 0.18), capitalised **0.83** and a final balance of **440.83**
-instead of 260.67. All of that would be fiction: the scheme has already paid the merchant 180.00 on the
-issuer's behalf. Refused in favour of P7: force-post the debit and raise `UNMATCHED_SETTLEMENT` so the
-money is on the books today and the dispute (chargeback) can be pursued with the facts.
+A cleared settlement is money the card scheme has already paid to the merchant on the issuer's behalf.
+Whether the authorization is missing, was taken offline, expired, or never happened, the issuer cannot refuse
+the clearing under scheme rules; the remedy is a chargeback. Rejecting E6 (Auth-Z, 180.00) would make the
+ledger untruthful: D4 would close at **465.00 instead of 285.00**, D5 at -180.00 after the fee, D6 at 440.00,
+and the run would end at **440.83 instead of 260.67**, while 180.00 really had left the bank. My policy P7
+posts the debit, raises `UNMATCHED_SETTLEMENT` for review, and leaves recovery to the chargeback process.
 
-### Criterion 6: restate past interest accruals when a back-valued correction arrives (refused)
+## Criterion 5: ACCEPTED (as a statement)
 
-Restating D2 .. D4 after E7 would move their accruals to 0.00, 0.01 (30.00 x 4 / 10000 = 1.2 -> 1) and 0.00,
-and restating again after E9 would move them back to 0.10, 0.26, 0.11: three days rewritten twice within two
-days. At the end of the run restatement alone gives **0.77** (D5 and D6 both re-accrued on 260.00), and
-restatement plus the fee refund of criterion 7 gives **0.79**. This ledger produces **0.67** and
-`npm run test:gap` asserts 0.79 on purpose to fail and document the 0.12.
-Refused because an accrual is a memo of what was true at EOD (P4); figures already reported never change.
-A correction, if wanted, is a new adjustment entry with a reason, visible in the journal.
+> "If Auth-B is approved, its hold reduces available balance but not ledger balance."
 
-### Criterion 7: automatically refund a fee when the entry that caused it is reversed (refused)
+Correct as a statement of how holds work: a hold reduces the available balance and never the ledger balance
+(P5; `closingBalance` never reads the authorization register, asserted in `test/ledger.test.ts`). In this
+run, however, the condition never fires: Auth-B is **DECLINED** on D5, because the balance as of D5 is
+-335.00 and -335.00 - 0 active holds - 90.00 = **-425.00** < 0. A declined request holds nothing.
 
-The D5 fee was correct on D5's facts (closing -335.00). Refunding it when E9 arrives would make D6 close at
-285.00, accrue 0.11 instead of 0.10, capitalise **0.68** and end at **285.68** instead of 260.67.
-Refused because a reversal event carries no reason: a bank error and a disputed purchase look identical in
-the stream, and only the first deserves an automatic refund. The engine would also need a counterfactual
-("would D5 have been negative without E7?") that is clean only when one entry is the sole cause. Refunds are
-new FEE-reversal entries posted by a person with a reason code (P8).
+## Criterion 6: REFUSED
 
-### Criterion 8: process events in booked-day order (sort the stream, or re-run a closed day's EOD) (refused)
+> "After E9, all balances and fees return to their pre-E7 values."
 
-Sorting puts E10 (booked D5) before E9 (booked D6). Day 5's EOD would then see ACC-002 at 10.000 and accrue
-0.004 on D5 as well as D6: capitalised **0.008** and a final balance of **10.008 instead of 10.004**, and
-no `LATE_EVENT` would ever be raised. Re-running Day 5's EOD when E10 arrives gives the same 10.008 plus a
-second D5 memo for ACC-002, which is criterion 6 by another route.
-Refused because the stream order is the order in which the bank learned things: a live ledger never has the
-whole stream in advance, and hiding lateness hides an operational problem. P10 posts E10 with its true value
-date (D5), raises the notice, and leaves Day 5 closed.
+Balances do; fees and accruals do not, by design. After E9 the value-dated ledger balances of D2 .. D4 are
+back to 250.00, 650.00 and 285.00. But the ledger is append-only: the 25.00 fee assessed at D5's end of day
+stays in the journal, and the D5 accrual memo of 0.00 (written on a close of -360.00) is never restated
+(P4, P8). Without E7 and E9 the engine ends at **285.79**: D4, D5 and D6 all close at 285.00, the accruals
+are 0.10 + 0.10 + 0.26 + 0.11 + 0.11 + 0.11 = 0.79 and there is no fee (in that run Auth-B would also be
+approved, which moves no balance). The actual run ends at **260.67** with accruals summing to 0.67. A fee
+returns only through an explicit, human-initiated refund entry with a reason code; `npm run test:gap`
+documents the 0.12 gap on purpose.
+
+## Criterion 7: REFUSED
+
+> "The three BHD instalments in E10 must each be BHD 3.334."
+
+3 x 3.334 = **10.002**, which creates 0.002 BHD out of nothing. The correct split of BHD 10.000 (10000 fils)
+is 3334 + 3333 + 3333 = 10000 fils, that is **3.334 + 3.333 + 3.333 = 10.000**; the 1 fils remainder goes to
+the first instalment (my policy P9). Asserted by the instalment tests in `test/money.test.ts` and
+`test/replay.test.ts`.
+
+## Criterion 8: REFUSED
+
+> "If the rounded daily interest accruals do not sum to the capitalized total, the remainder is discarded."
+
+The brief's own capitalisation rule is that the rounded daily accruals sum exactly to the capitalised total.
+In this design the capitalised amount *is* the sum of the rounded accruals (0.10 + 0.10 + 0.26 + 0.11 + 0.00
++ 0.10 = 0.67 for ACC-001, 0.004 for ACC-002), so a remainder cannot exist and there is nothing to discard.
+A design in which the two could differ would be one that rounds once on a total: 0.04 % of the summed
+positive closings (169500 fils x 4 / 10000 = 67.8) rounds to 0.68, one fils away from 0.67, and "discard the
+remainder" would then silently decide who loses that fils. Asserted by "capitalised 0.67 ... the EXACT sum of
+the rounded memos" in `test/replay.test.ts`.
 
 ## Approaches abandoned along the way
 
 - **Floating-point money.** `0.1 + 0.2 === 0.30000000000000004`; `28500 * 0.0004 === 11.400000000000002`,
   which `Math.round` happens to save but a 0.5 case would not; `10 / 3` has no BHD representation. Every
   amount is a `bigint` in minor units and the only rounding is the deliberate one in `roundHalfUp`.
-- **Sorting the stream by booked day.** Simpler to reason about, wrong for the reasons in criterion 8: it
-  changes ACC-002's result (10.008) and erases the LATE_EVENT.
-- **Retroactive fees.** A tempting reading of "fee if the day closed negative", refused in criterion 2
-  (75.00 of fees, 50.00 of them for a reversed debit).
-- **Auto-refunding fees on reversal.** Friendly to the customer, refused in criterion 7 because the engine
-  cannot tell an error from a dispute, and it changes reported D5/D6 history.
+- **Sorting the stream by booked day.** Simpler to reason about, but it puts E10 (booked D5) before E9
+  (booked D6): Day 5's end of day would see ACC-002 at 10.000, accrue 0.004 on D5 as well as D6, capitalise
+  0.008 and end at 10.008 instead of 10.004, and no `LATE_EVENT` would ever be raised. A live ledger never has
+  the whole stream in advance, so I replay in arrival order and flag lateness (my policy P10).
+- **Retroactive fees.** A tempting reading of "fee if the day closed negative", refused under criterion 2:
+  three fees instead of one, 50.00 of them for a debit that E9 reverses one day later, final 210.65.
+- **Auto-refunding fees on reversal.** Friendly to the customer, refused under criterion 6: the engine cannot
+  tell a bank error from a disputed purchase, and the refund would move D6 to 285.00 and the end to 285.68,
+  rewriting reported history. Refunds are new entries posted by a person with a reason (my policy P8).
 - **A mutable `status` field on holds.** Replaced by a derived `holdState` (approved and not yet referenced by
   a settlement entry) so that the authorization register is append-only like the journal.
 - **Accruals as ledger entries.** Six tiny INTEREST entries per account would compound inside the window and
-  clutter the journal; the brief's memo-then-capitalise split keeps the journal to one credit per account.
+  clutter the journal. The brief asks for one capitalising credit at the end of Day 6; I keep the daily
+  accruals as memo records until then (my policy P4).
